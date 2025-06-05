@@ -1,31 +1,43 @@
 import { Image } from 'expo-image';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Checkbox } from 'expo-checkbox';
 import { useAuth } from '@/context/AuthContext';
-import React from 'react';
+import { usePlants } from '@/context/PlantContext';
+import React, { useState, useCallback } from 'react';
 
 export default function HomeScreen() {
-  
-  // Create individual state for each plant
-  const [plant1Checked, setPlant1Checked] = React.useState(false);
-  const [plant2Checked, setPlant2Checked] = React.useState(false);
-  const [plant3Checked, setPlant3Checked] = React.useState(false);
-  const [plant4Checked, setPlant4Checked] = React.useState(false);
-  const [plant5Checked, setPlant5Checked] = React.useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Get auth context and router
-  const { logout } = useAuth();
+  const { logout, userData } = useAuth();
   const router = useRouter();
   
-  const handleLogout = () => {
-    logout();
+  // Get plants data from context
+  const { plants, loadingPlants, errorMessage, refreshPlants, waterPlant } = usePlants();
+  
+  const handleLogout = async () => {
+    await logout();
     // Redirect will happen automatically through the TabLayout effect
-    // We don't need to manually navigate here
   };
+  
+  // Handle checkbox toggle for a plant
+  const handleWateringToggle = async (plantId: number, currentStatus: boolean) => {
+    if (!currentStatus) {
+      // Only water the plant if it's not already watered
+      await waterPlant(plantId);
+    }
+  };
+  
+  // Pull to refresh functionality
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshPlants();
+    setRefreshing(false);
+  }, [refreshPlants]);
 
   return (
     <ParallaxScrollView
@@ -35,9 +47,18 @@ export default function HomeScreen() {
           source={require('@/assets/images/partial-react-logo.png')}
           style={styles.reactLogo}
         />
-      }>
+      }
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Plants Overview:</ThemedText>
+        <ThemedView>
+          <ThemedText type="title">Plants Overview</ThemedText>
+          {userData && (
+            <ThemedText style={styles.welcomeText}>Welcome, {userData.username}</ThemedText>
+          )}
+        </ThemedView>
         <TouchableOpacity 
           style={styles.logoutButton}
           onPress={handleLogout}
@@ -45,128 +66,78 @@ export default function HomeScreen() {
           <ThemedText style={styles.logoutText}>Logout</ThemedText>
         </TouchableOpacity>
       </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <View style={styles.plantRow}>
-          <Image
-            source={require('@/assets/images/icon.png')}
-            style={styles.plantImage}
-            contentFit="cover"
-          />
-          <View style={styles.plantInfo}>
-            <ThemedText type="subtitle">PlantName1</ThemedText>
-            <ThemedText>
-              Needs water in <ThemedText type="defaultSemiBold">3 days</ThemedText>
-            </ThemedText>
-          </View>
-        <View style={styles.checkboxContainer}>
-            <Checkbox
-              style={styles.checkbox}
-              value={plant1Checked}
-              onValueChange={setPlant1Checked}
-              color={plant1Checked ? '#4630EB' : undefined}
-            />
-          </View>
-        </View>
-      </ThemedView>
       
-      <ThemedView style={styles.stepContainer}>
-        <View style={styles.plantRow}>
-          <Image
-            source={require('@/assets/images/icon.png')}
-            style={styles.plantImage}
-            contentFit="cover"
-          />
-          <View style={styles.plantInfo}>
-            <ThemedText type="subtitle">PlantName2</ThemedText>
-            <ThemedText>
-              Needs water <ThemedText type="defaultSemiBold">Today!</ThemedText>
-            </ThemedText>
+      {/* Loading state */}
+      {loadingPlants && !refreshing && (
+        <ThemedView style={styles.messageContainer}>
+          <ThemedText>Loading plants...</ThemedText>
+        </ThemedView>
+      )}
+      
+      {/* Error message */}
+      {errorMessage && (
+        <ThemedView style={styles.messageContainer}>
+          <ThemedText style={styles.errorText}>{errorMessage}</ThemedText>
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={refreshPlants}
+          >
+            <ThemedText style={styles.retryText}>Retry</ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
+      )}
+      
+      {/* Empty state */}
+      {!loadingPlants && plants.length === 0 && !errorMessage && (
+        <ThemedView style={styles.messageContainer}>
+          <ThemedText>You do not have any plants yet.</ThemedText>
+          <ThemedText style={styles.addPlantText}>Add some plants to get started!</ThemedText>
+        </ThemedView>
+      )}
+      
+      {/* Plant list */}
+      {plants.map(plant => (
+        <ThemedView key={plant.id} style={styles.stepContainer}>
+          <View style={styles.plantRow}>
+            {plant.image ? (
+              <Image
+                source={{ uri: plant.image }}
+                style={styles.plantImage}
+                contentFit="cover"
+              />
+            ) : (
+              <Image
+                source={require('@/assets/images/icon.png')}
+                style={styles.plantImage}
+                contentFit="cover"
+              />
+            )}
+            <View style={styles.plantInfo}>
+              <ThemedText type="subtitle">{plant.name}</ThemedText>
+              <ThemedText>
+                {plant.wateringDueText}
+              </ThemedText>
+            </View>
+            <View style={styles.checkboxContainer}>
+              <Checkbox
+                style={styles.checkbox}
+                value={plant.isWatered}
+                onValueChange={() => handleWateringToggle(plant.id, plant.isWatered)}
+                color={plant.isWatered ? '#4630EB' : undefined}
+                disabled={plant.isWatered} // Prevent unchecking if already watered
+              />
+            </View>
           </View>
-          <View style={styles.checkboxContainer}>
-            <Checkbox
-              style={styles.checkbox}
-              value={plant2Checked}
-              onValueChange={setPlant2Checked}
-              color={plant2Checked ? '#4630EB' : undefined}
-            />
-          </View>
-        </View>
-      </ThemedView>
+        </ThemedView>
+      ))}
 
-      <ThemedView style={styles.stepContainer}>
-        <View style={styles.plantRow}>
-          <Image
-            source={require('@/assets/images/icon.png')}
-            style={styles.plantImage}
-            contentFit="cover"
-          />
-          <View style={styles.plantInfo}>
-            <ThemedText type="subtitle">PlantName3</ThemedText>
-            <ThemedText>
-              Needs water in <ThemedText type="defaultSemiBold">1 day</ThemedText>
-            </ThemedText>
-          </View>
-          <View style={styles.checkboxContainer}>
-            <Checkbox
-              style={styles.checkbox}
-              value={plant3Checked}
-              onValueChange={setPlant3Checked}
-              color={plant3Checked ? '#4630EB' : undefined}
-            />
-          </View>
-        </View>
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <View style={styles.plantRow}>
-          <Image
-            source={require('@/assets/images/icon.png')}
-            style={styles.plantImage}
-            contentFit="cover"
-          />
-          <View style={styles.plantInfo}>
-            <ThemedText type="subtitle">PlantName4</ThemedText>
-            <ThemedText>
-              Needs water in <ThemedText type="defaultSemiBold">3 days</ThemedText>
-            </ThemedText>
-          </View>
-          <View style={styles.checkboxContainer}>
-            <Checkbox
-              style={styles.checkbox}
-              value={plant4Checked}
-              onValueChange={setPlant4Checked}
-              color={plant4Checked ? '#4630EB' : undefined}
-            />
-          </View>
-        </View>
-      </ThemedView>
-
-        <ThemedView style={styles.stepContainer}>
-        <View style={styles.plantRow}>
-          <Image
-            source={require('@/assets/images/icon.png')}
-            style={styles.plantImage}
-            contentFit="cover"
-          />
-          <View style={styles.plantInfo}>
-            <ThemedText type="subtitle">PlantName5</ThemedText>
-            <ThemedText>
-              Needs water in <ThemedText type="defaultSemiBold">2 days</ThemedText>
-            </ThemedText>
-          </View>
-          <View style={styles.checkboxContainer}>
-            <Checkbox
-              style={styles.checkbox}
-              value={plant5Checked}
-              onValueChange={setPlant5Checked}
-              color={plant5Checked ? '#4630EB' : undefined}
-            />
-          </View>
-        </View>
-      </ThemedView>
-
-
+      {/* Add plant button */}
+      <TouchableOpacity 
+        style={styles.addPlantButton}
+        onPress={() => {/* Navigate to add plant screen */}}
+      >
+        <ThemedText style={styles.addPlantButtonText}>Add New Plant</ThemedText>
+      </TouchableOpacity>
     </ParallaxScrollView>
   );
 }
@@ -188,9 +159,18 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
+  welcomeText: {
+    fontSize: 14,
+    marginTop: 4,
+    opacity: 0.8,
+  },
   stepContainer: {
     gap: 8,
     marginBottom: 16,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E6E6E6',
   },
   plantRow: {
     flexDirection: 'row',
@@ -220,5 +200,44 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 24,
     height: 24,
+  },
+  messageContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    backgroundColor: '#f8f8f8',
+    marginVertical: 10,
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 10,
+  },
+  retryButton: {
+    padding: 10,
+    backgroundColor: '#A1CEDC',
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  retryText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  addPlantText: {
+    marginTop: 10,
+    fontStyle: 'italic',
+  },
+  addPlantButton: {
+    backgroundColor: '#A1CEDC',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  addPlantButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

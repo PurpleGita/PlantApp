@@ -83,7 +83,7 @@ export default function LoginScreen() {
             </View>
 
             <ThemedText type="title" style={styles.title}>
-              Plant Buddy
+              Moon Plants
             </ThemedText>
             
             <ThemedText style={styles.subtitle}>

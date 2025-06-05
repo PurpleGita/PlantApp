@@ -1,67 +1,81 @@
-import type { PropsWithChildren, ReactElement } from 'react';
-import { StyleSheet } from 'react-native';
+import React, { ReactElement } from 'react';
+import { View, StyleSheet, ScrollView, RefreshControl, RefreshControlProps, useWindowDimensions, useColorScheme } from 'react-native';
 import Animated, {
-  interpolate,
-  useAnimatedRef,
+  useSharedValue,
+  useAnimatedScrollHandler,
   useAnimatedStyle,
-  useScrollViewOffset,
+  interpolate,
+  SharedValue,
 } from 'react-native-reanimated';
-
-import { ThemedView } from '@/components/ThemedView';
-import { useBottomTabOverflow } from '@/components/ui/TabBarBackground';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { PropsWithChildren } from 'react';
 
 const HEADER_HEIGHT = 250;
 
 type Props = PropsWithChildren<{
   headerImage: ReactElement;
   headerBackgroundColor: { dark: string; light: string };
+  refreshControl?: ReactElement<RefreshControlProps>;
 }>;
 
 export default function ParallaxScrollView({
   children,
   headerImage,
   headerBackgroundColor,
+  refreshControl,
 }: Props) {
   const colorScheme = useColorScheme() ?? 'light';
-  const scrollRef = useAnimatedRef<Animated.ScrollView>();
-  const scrollOffset = useScrollViewOffset(scrollRef);
-  const bottom = useBottomTabOverflow();
+  const { width: windowWidth } = useWindowDimensions();
+  const scrollY = useSharedValue(0);
+
+  // Handle scroll events
+  const scrollHandler = useAnimatedScrollHandler((event) => {
+    scrollY.value = event.contentOffset.y;
+  });
+
+  // Animate the header based on scroll position
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
         {
           translateY: interpolate(
-            scrollOffset.value,
+            scrollY.value,
             [-HEADER_HEIGHT, 0, HEADER_HEIGHT],
-            [-HEADER_HEIGHT / 2, 0, HEADER_HEIGHT * 0.75]
+            [HEADER_HEIGHT / 2, 0, -HEADER_HEIGHT / 3],
+            'clamp'
           ),
         },
-        {
-          scale: interpolate(scrollOffset.value, [-HEADER_HEIGHT, 0, HEADER_HEIGHT], [2, 1, 1]),
-        },
       ],
+      opacity: interpolate(
+        scrollY.value,
+        [0, HEADER_HEIGHT / 2],
+        [1, 0.3],
+        'clamp'
+      ),
     };
   });
 
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.container}>
+      <Animated.View
+        style={[
+          styles.header,
+          { backgroundColor: headerBackgroundColor[colorScheme] },
+          headerAnimatedStyle,
+        ]}>
+        {headerImage}
+      </Animated.View>
       <Animated.ScrollView
-        ref={scrollRef}
+        contentContainerStyle={[
+          styles.scrollViewContent,
+          { paddingTop: HEADER_HEIGHT },
+        ]}
         scrollEventThrottle={16}
-        scrollIndicatorInsets={{ bottom }}
-        contentContainerStyle={{ paddingBottom: bottom }}>
-        <Animated.View
-          style={[
-            styles.header,
-            { backgroundColor: headerBackgroundColor[colorScheme] },
-            headerAnimatedStyle,
-          ]}>
-          {headerImage}
-        </Animated.View>
-        <ThemedView style={styles.content}>{children}</ThemedView>
+        onScroll={scrollHandler}
+        refreshControl={refreshControl}
+      >
+        <View style={styles.content}>{children}</View>
       </Animated.ScrollView>
-    </ThemedView>
+    </View>
   );
 }
 
@@ -70,13 +84,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     height: HEADER_HEIGHT,
     overflow: 'hidden',
+    zIndex: 1,
+  },
+  scrollViewContent: {
+    paddingHorizontal: 16,
   },
   content: {
-    flex: 1,
-    padding: 32,
-    gap: 16,
-    overflow: 'hidden',
+    paddingTop: 16,
+    paddingBottom: 32,
   },
 });
