@@ -101,29 +101,49 @@ export class PlantService {
   /**
    * Update plant's watering status
    */
-  async updatePlantWateringStatus(plantId: number, isWatered: boolean): Promise<Plant> {
-    try {
-      const response = await fetch(`${this.getApiBaseUrl()}/items/${plantId}/water`, {
-        method: 'PUT',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ isWatered }),
-      });
-
-      if (!response.ok) {
-        console.error('API response error:', response.status, response.statusText);
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return Plant.fromApiResponse(data);
-    } catch (error) {
-      console.error('Error updating plant watering status:', error);
-      throw error;
+ async updatePlantWateringStatus(plantId: number): Promise<Plant> {
+  try {
+    // First, fetch the current plant so we know its waterNeeded value
+    const getResponse = await fetch(`${this.getApiBaseUrl()}/items/${plantId}`);
+    if (!getResponse.ok) {
+      throw new Error(`Failed to fetch plant with ID ${plantId}`);
     }
+
+    const plantData = await getResponse.json();
+    const currentPlant = Plant.fromApiResponse(plantData);
+
+    // Prepare the updated values
+    const updatedPayload = {
+      isWatered: true,
+      dayUntilWater: currentPlant.waterNeeded,
+    };
+
+    // Perform the update
+    const putResponse = await fetch(`${this.getApiBaseUrl()}/items/${plantId}`, {
+      method: 'PUT',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...currentPlant.toApiRequest(),
+        ...updatedPayload,
+      }),
+    });
+
+    if (!putResponse.ok) {
+      console.error('API response error:', putResponse.status, putResponse.statusText);
+      throw new Error(`API error: ${putResponse.status}`);
+    }
+
+    const updatedData = await putResponse.json();
+    return Plant.fromApiResponse(updatedData);
+  } catch (error) {
+    console.error('Error updating plant watering status:', error);
+    throw error;
   }
+}
+
 
   /**
    * Delete a plant

@@ -53,7 +53,7 @@ export function PlantProvider({ children }: { children: ReactNode }) {
 
   const waterPlant = useCallback(async (plantId: number) => {
     try {
-      const updatedPlant = await plantService.updatePlantWateringStatus(plantId, true);
+      const updatedPlant = await plantService.updatePlantWateringStatus(plantId);
       
       // Update the local state with the proper Plant instance returned from the API
       setPlants(prevPlants => 

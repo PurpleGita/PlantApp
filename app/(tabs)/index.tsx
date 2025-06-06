@@ -131,13 +131,6 @@ export default function HomeScreen() {
         </ThemedView>
       ))}
 
-      {/* Add plant button */}
-      <TouchableOpacity 
-        style={styles.addPlantButton}
-        onPress={() => {/* Navigate to add plant screen */}}
-      >
-        <ThemedText style={styles.addPlantButtonText}>Add New Plant</ThemedText>
-      </TouchableOpacity>
     </ParallaxScrollView>
   );
 }

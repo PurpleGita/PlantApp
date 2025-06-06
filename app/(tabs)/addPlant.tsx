@@ -1,292 +1,153 @@
 import React, { useState } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View, KeyboardAvoidingView, Platform, ScrollView, Alert, Text } from 'react-native';
-import { useRouter } from 'expo-router';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { View, Text, TextInput, Button, Image, StyleSheet, ScrollView, Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { usePlants } from '@/context/PlantContext';
 import { useAuth } from '@/context/AuthContext';
 import { Plant } from '@/models/Plant';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
 
-export default function AddPlantScreen() {
-  const [name, setName] = useState('');
-  const [waterNeeded, setWaterNeeded] = useState('3'); // Default to 3 days
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [image, setImage] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const { userData } = useAuth();
+export default function AddPlant({ navigation }: any) {
   const { addPlant } = usePlants();
-  const router = useRouter();
+  const { userData } = useAuth();
 
-  const debounceDelay = 500; // 500ms delay to prevent rapid presses
+  const [name, setName] = useState('');
+  const [waterNeeded, setWaterNeeded] = useState('');
+  const [dayUntilWater, setDayUntilWater] = useState('');
+  const [image, setImage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Request permission to use camera and camera roll
-  const requestPermissions = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Camera permissions are required to take a photo.');
-      return false;
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      base64: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
-    return true;
   };
 
-  // Handle taking a photo with camera
-  const takePhoto = async () => {
-    if (isProcessing) return;
-    setIsProcessing(true);
+  const takeImage = async () => {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) {
+    Alert.alert('Permission required', 'Camera access is needed to take a photo.');
+    return;
+  }
 
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) {
-      setIsProcessing(false);
+  const result = await ImagePicker.launchCameraAsync({
+    base64: true,
+    quality: 0.7,
+  });
+
+  if (!result.canceled && result.assets[0].base64) {
+    setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+  }
+};
+
+
+  const handleSubmit = async () => {
+    if (!userData?.id) {
+      Alert.alert('Authentication error', 'You must be logged in to add a plant.');
       return;
     }
 
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 1,
-      });
-
-      if (!result.canceled) {
-        setImage(result.assets[0].uri);
-      } else {
-        Alert.alert('No Photo Taken', 'You did not take a photo.');
-      }
-    } catch {
-      Alert.alert('Error', 'An error occurred while taking a photo.');
-    } finally {
-      setTimeout(() => setIsProcessing(false), debounceDelay);
-    }
-  };
-
-  // Handle selecting an image from camera roll
-  const selectImage = async () => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 1,
-      });
-
-      if (!result.canceled) {
-        setImage(result.assets[0].uri);
-      } else {
-        Alert.alert('No Image Selected', 'You did not select an image.');
-      }
-    } catch {
-      Alert.alert('Error', 'An error occurred while selecting an image.');
-    } finally {
-      setTimeout(() => setIsProcessing(false), debounceDelay);
-    }
-  };
-
-  // Clear the selected image
-  const clearImage = () => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-
-    try {
-      setImage(null);
-      Alert.alert('Image Cleared', 'You can now select a new image.');
-    } catch {
-      Alert.alert('Error', 'An error occurred while clearing the image.');
-    } finally {
-      setTimeout(() => setIsProcessing(false), debounceDelay);
-    }
-  };
-
-  // Handle add plant form submission
-  const handleAddPlant = async () => {
-    if (!name.trim()) {
-      setError('Plant name is required.');
+    if (!name || !waterNeeded) {
+      Alert.alert('Validation Error', 'Name and Water Needed are required.');
       return;
     }
 
-    setIsSubmitting(true);
-    setError('');
+    const newPlant = new Plant(
+      0,
+      name,
+      Number(waterNeeded),
+      false,
+      image,
+      dayUntilWater ? Number(dayUntilWater) : null,
+      userData.id
+    );
 
     try {
-      const newPlant = new Plant(0, name, parseInt(waterNeeded, 10), false, image, null, userData?.id || 0);
+      setIsSubmitting(true);
       await addPlant(newPlant);
-      router.push('/');
-    } catch {
-      setError('Failed to add plant. Please try again.');
+      Alert.alert('Success', 'Plant added successfully!');
+      navigation.goBack(); // or navigate to the plant list
+    } catch (err) {
+      Alert.alert('Error', 'Something went wrong while adding the plant.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D997' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.headerImage}
-        />
-      }
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <ThemedView style={styles.formContainer}>
-            <ThemedView style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Plant Name</ThemedText>
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Enter plant name"
-                placeholderTextColor="#999"
-                accessibilityLabel="Plant name input"
-                accessibilityHint="Enter the name of your plant"
-              />
-            </ThemedView>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.label}>Plant Name</Text>
+      <TextInput
+        style={styles.input}
+        value={name}
+        onChangeText={setName}
+        placeholder="Plant Name"
+      />
 
-            <ThemedView style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Days Between Watering</ThemedText>
-              <TextInput
-                style={styles.input}
-                value={waterNeeded}
-                onChangeText={setWaterNeeded}
-                keyboardType="numeric"
-                placeholder="Enter number of days"
-                placeholderTextColor="#999"
-                accessibilityLabel="Days between watering input"
-                accessibilityHint="Enter the number of days between watering your plant"
-              />
-            </ThemedView>
+      <Text style={styles.label}>Water Needed (ml)</Text>
+      <TextInput
+        style={styles.input}
+        value={waterNeeded}
+        onChangeText={setWaterNeeded}
+        keyboardType="numeric"
+        placeholder="How many days between watering"
+      />
 
-            {/* Image Selection Section */}
-            <ThemedView style={styles.inputGroup}>
-              <ThemedText style={styles.label}>Plant Image (Optional)</ThemedText>
+      <Text style={styles.label}>Days Until Water</Text>
+      <TextInput
+        style={styles.input}
+        value={dayUntilWater}
+        onChangeText={setDayUntilWater}
+        keyboardType="numeric"
+        placeholder="Days untill next watering"
+      />
 
-              {/* Preview selected image if available */}
-              <View style={styles.imageContainer}>
-                {isSubmitting && !image ? (
-                  <ThemedText style={styles.loadingText}>Processing image...</ThemedText>
-                ) : image ? (
-                  <Image source={{ uri: image }} style={styles.imagePreview} />
-                ) : (
-                  <ThemedText style={styles.placeholderText}>No image selected</ThemedText>
-                )}
-              </View>
+<View style={styles.imageButtons}>
+  <Button title="Pick Image" onPress={pickImage} />
+  <View style={{ width: 10 }} />
+  <Button title="Take Image" onPress={takeImage} />
+</View>
 
-              <View style={styles.buttonGroup}>
-                <TouchableOpacity style={styles.button} onPress={takePhoto}>
-                  <Text style={styles.buttonText}>Take Photo</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.button} onPress={selectImage}>
-                  <Text style={styles.buttonText}>Select From Gallery</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.button} onPress={clearImage}>
-                  <Text style={styles.buttonText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </ThemedView>
+      
 
-            {error ? <ThemedText style={styles.errorText}>{error}</ThemedText> : null}
-
-            <TouchableOpacity style={styles.submitButton} onPress={handleAddPlant} disabled={isSubmitting}>
-              <Text style={styles.submitButtonText}>{isSubmitting ? 'Submitting...' : 'Add Plant'}</Text>
-            </TouchableOpacity>
-          </ThemedView>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </ParallaxScrollView>
+      <View style={styles.submitButton}>
+        <Button title={isSubmitting ? "Submitting..." : "Add Plant"} onPress={handleSubmit} disabled={isSubmitting} />
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  formContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  inputGroup: {
-    marginBottom: 16,
+    padding: 20,
+    gap: 15,
   },
   label: {
-    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
+    fontSize: 16,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    padding: 8,
-    fontSize: 16,
-  },
-  imageContainer: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  imagePreview: {
-    width: 100,
-    height: 100,
+    backgroundColor: '#f2f2f2',
+    padding: 10,
     borderRadius: 8,
   },
-  placeholderText: {
-    color: '#999',
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  button: {
-    backgroundColor: '#007BFF',
-    padding: 10,
-    borderRadius: 4,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  errorText: {
-    color: 'red',
-    marginBottom: 16,
-  },
-  submitButton: {
-    backgroundColor: '#28A745',
-    padding: 12,
-    borderRadius: 4,
-    alignItems: 'center',
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  headerImage: {
+  image: {
+    marginTop: 10,
     width: '100%',
     height: 200,
+    borderRadius: 8,
   },
-  loadingText: {
-    color: '#999',
-    fontSize: 14,
-    textAlign: 'center',
+  submitButton: {
+    marginTop: 20,
   },
+  imageButtons: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginTop: 10,
+},
+
 });
