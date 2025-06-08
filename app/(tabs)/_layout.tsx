@@ -67,7 +67,7 @@ export default function TabLayout() {
         name="addPlant" 
         options={{
           title: 'Add Plant',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="flower.fill" color={color} />,
         }}
       />
       <Tabs.Screen

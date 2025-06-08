@@ -37,6 +37,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "85411bb7-6ccc-44d9-b748-ac97a5b4dae5"
+      }
+    },
+    "owner": "purplereact"
   }
 }

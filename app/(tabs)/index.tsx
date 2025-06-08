@@ -8,8 +8,11 @@ import { Checkbox } from 'expo-checkbox';
 import { useAuth } from '@/context/AuthContext';
 import { usePlants } from '@/context/PlantContext';
 import React, { useState, useCallback } from 'react';
+import registerNNPushToken from 'native-notify';
+
 
 export default function HomeScreen() {
+  registerNNPushToken(30612, 'LpvNx5mA3aeFRkYpv2qfDH');
   const [refreshing, setRefreshing] = useState(false);
   
   // Get auth context and router
@@ -44,7 +47,7 @@ export default function HomeScreen() {
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D997' }}
       headerImage={
         <Image
-          source={require('@/assets/images/partial-react-logo.png')}
+          source={require('@/assets/images/flowerMoon.png')}
           style={styles.reactLogo}
         />
       }
@@ -52,20 +55,20 @@ export default function HomeScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedView>
+      <View style={styles.titleContainer}>
+        <View>
           <ThemedText type="title">Plants Overview</ThemedText>
           {userData && (
             <ThemedText style={styles.welcomeText}>Welcome, {userData.username}</ThemedText>
           )}
-        </ThemedView>
+        </View>
         <TouchableOpacity 
           style={styles.logoutButton}
           onPress={handleLogout}
         >
           <ThemedText style={styles.logoutText}>Logout</ThemedText>
         </TouchableOpacity>
-      </ThemedView>
+      </View>
       
       {/* Loading state */}
       {loadingPlants && !refreshing && (
@@ -91,7 +94,6 @@ export default function HomeScreen() {
       {!loadingPlants && plants.length === 0 && !errorMessage && (
         <ThemedView style={styles.messageContainer}>
           <ThemedText>You do not have any plants yet.</ThemedText>
-          <ThemedText style={styles.addPlantText}>Add some plants to get started!</ThemedText>
         </ThemedView>
       )}
       
@@ -123,7 +125,7 @@ export default function HomeScreen() {
                 style={styles.checkbox}
                 value={plant.isWatered}
                 onValueChange={() => handleWateringToggle(plant.id, plant.isWatered)}
-                color={plant.isWatered ? '#4630EB' : undefined}
+                color="#A1CEDC"
                 disabled={plant.isWatered} // Prevent unchecking if already watered
               />
             </View>
@@ -142,6 +144,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
     marginBottom: 16,
+    backgroundColor: 'transparent',
   },
   logoutButton: {
     padding: 8,
@@ -163,7 +166,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E6E6E6',
+    borderColor: '#A1CEDC',
+    backgroundColor: 'transparent',
+    
   },
   plantRow: {
     flexDirection: 'row',
@@ -215,22 +220,5 @@ const styles = StyleSheet.create({
   retryText: {
     color: 'white',
     fontWeight: 'bold',
-  },
-  addPlantText: {
-    marginTop: 10,
-    fontStyle: 'italic',
-  },
-  addPlantButton: {
-    backgroundColor: '#A1CEDC',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 32,
-  },
-  addPlantButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
   },
 });
