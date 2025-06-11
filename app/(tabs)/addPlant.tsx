@@ -70,9 +70,10 @@ export default function AddPlant({ navigation }: any) {
       setIsSubmitting(true);
       await addPlant(newPlant);
       Alert.alert('Success', 'Plant added successfully!');
-      navigation.goBack(); // or navigate to the plant list
+      navigation.goBack() // or navigate to the plant list
     } catch {
       Alert.alert('Error', 'Something went wrong while adding the plant.');
+      navigation.goBack()
     } finally {
       setIsSubmitting(false);
     }
@@ -127,7 +128,7 @@ export default function AddPlant({ navigation }: any) {
             placeholderTextColor="#999"
           />
 
-          <ThemedText style={styles.label}>Water Needed (ml)</ThemedText>
+          <ThemedText style={styles.label}>Days Between Watering </ThemedText>
           <TextInput
             style={[styles.input, { borderColor: '#A1CEDC' }]}
             value={waterNeeded}
@@ -137,7 +138,7 @@ export default function AddPlant({ navigation }: any) {
             placeholderTextColor="#999"
           />
 
-          <ThemedText style={styles.label}>Days Until Water</ThemedText>
+          <ThemedText style={styles.label}>Days Until Next Water</ThemedText>
           <TextInput
             style={[styles.input, { borderColor: '#A1CEDC' }]}
             value={dayUntilWater}

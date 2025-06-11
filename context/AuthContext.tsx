@@ -61,13 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Login function that validates credentials with the backend API
   const login = useCallback(async (username: string, password: string) => {
     try {
-      // Use different IP addresses based on platform
-      // - Use 10.0.2.2 for Android emulator (maps to host machine's localhost)
-      // - Use localhost for web
-      // - Use host machine's actual IP address for physical devices
+
+      
       let apiUrl;
       if (Platform.OS === 'android') {
-        apiUrl = 'http://192.168.1.139:8080/adminlogins';
+        apiUrl = 'http://192.168.63.135:8080/adminlogins';
       } else if (Platform.OS === 'ios') {
         apiUrl = 'http://192.168.1.139:8080/adminlogins';
       } else {

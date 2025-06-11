@@ -5,7 +5,7 @@ export class PlantService {
   // Get the base API URL based on the platform
   private getApiBaseUrl(): string {
     if (Platform.OS === 'android') {
-      return 'http://192.168.1.139:8080';
+      return 'http://192.168.63.135:8080';
     } else if (Platform.OS === 'ios') {
       return 'http://192.168.1.139:8080';
     } else {
